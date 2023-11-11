@@ -1,0 +1,11 @@
+[package]
+name = "imgr-rust"
+version = "0.1.0"
+edition = "2021"
+description = "Rename image files to their EXIF creation date if possible"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+anyhow = "1.0"
+kamadak-exif = "0.5"
+chrono = "0.4"
