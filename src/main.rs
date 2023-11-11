@@ -5,7 +5,7 @@ use exif::{Exif, In, Reader, Tag};
 use std::{
     fs::{DirEntry, File},
     io::BufReader,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 #[derive(Parser)]
@@ -30,7 +30,7 @@ impl std::fmt::Display for Errors {
 
 impl std::error::Error for Errors {}
 
-fn traverse_dir(dir: &PathBuf) -> Result<()> {
+fn traverse_dir(dir: &Path) -> Result<()> {
     if !dir.is_dir() {
         bail!(Errors::NotADirectory);
     }
@@ -89,7 +89,7 @@ fn filename(entry: &DirEntry, exif: Exif) -> Result<String> {
     let exif_dt = get_datetime_from_exif(exif)?;
 
     let dt = NaiveDateTime::parse_from_str(&exif_dt, "%Y-%m-%d %H:%M:%S")
-        .with_context(|| format!("Unable to parse EXIF date"))?;
+        .with_context(|| "Unable to parse EXIF date".to_string())?;
 
     let mut filename = dt.format("%Y-%m-%d_%H-%M-%S").to_string();
     let path = entry.path();
