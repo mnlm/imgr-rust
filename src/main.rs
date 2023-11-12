@@ -66,7 +66,7 @@ fn rename(entry: &DirEntry) -> Result<()> {
                         let mut to = PathBuf::from(parent);
                         to.push(filename);
 
-                        if entry.path() != to {
+                        if !to.exists() {
                             std::fs::rename(entry.path(), &to).with_context(|| {
                                 format!("Could not rename `{}`", entry.path().display())
                             })?;
