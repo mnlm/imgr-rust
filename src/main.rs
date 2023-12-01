@@ -30,6 +30,7 @@ impl std::fmt::Display for Errors {
 
 impl std::error::Error for Errors {}
 
+/// Recursively read directory supplied in CLI argument and rename image files.
 fn traverse_dir(dir: &Path) -> Result<()> {
     if !dir.is_dir() {
         bail!(Errors::NotADirectory);
@@ -50,6 +51,8 @@ fn traverse_dir(dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Rename a file to it's new filename.
+/// If target filename already exists, nothing happens.
 fn rename(entry: &DirEntry) -> Result<()> {
     let file = File::open(entry.path())
         .with_context(|| format!("Could not open file `{}`", entry.path().display()))?;
@@ -85,6 +88,8 @@ fn rename(entry: &DirEntry) -> Result<()> {
     Ok(())
 }
 
+/// Generates the new filename for renaming a file.
+/// The pattern is: YYYY-MM-DD_H-M-S.extension
 fn filename(entry: &DirEntry, exif: Exif) -> Result<String> {
     let exif_dt = get_datetime_from_exif(exif)?;
 
@@ -107,6 +112,8 @@ fn filename(entry: &DirEntry, exif: Exif) -> Result<String> {
     }
 }
 
+/// Tries to get a date time value from EXIF data.
+/// Checks different EXIF fields, if none of them exist returns an error.
 fn get_datetime_from_exif(exif: Exif) -> Result<String> {
     if let Some(datetime) = exif.get_field(Tag::DateTimeOriginal, In::PRIMARY) {
         return Ok(datetime.display_value().to_string());
