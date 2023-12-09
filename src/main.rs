@@ -33,11 +33,7 @@ impl fmt::Display for Errors {
                 write!(f, "{}", "EXIF data has no date time parameter set".red())
             }
             Self::FileExists(path) => {
-                write!(
-                    f,
-                    "{}",
-                    format!("`{}` already exists", path.display()).red()
-                )
+                write!(f, "{}", format!("{} already exists", path.display()).red())
             }
         }
     }
