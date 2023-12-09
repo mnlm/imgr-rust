@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDateTime;
 use clap::Parser;
 use exif::{Exif, Field, In, Reader, Tag};
@@ -34,7 +34,7 @@ impl error::Error for Errors {}
 /// Recursively read directory supplied in CLI argument and rename image files.
 fn traverse_dir(dir: &Path) -> Result<()> {
     if !dir.is_dir() {
-        bail!(Errors::NotADirectory);
+        return Err(anyhow!(Errors::NotADirectory));
     }
 
     for entry in dir
