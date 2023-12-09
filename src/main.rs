@@ -22,7 +22,7 @@ struct Cli {
 enum Errors {
     NotADirectory,
     NoExifDateTimeAvailable,
-    FileExists,
+    FileExists(PathBuf),
 }
 
 impl fmt::Display for Errors {
@@ -32,7 +32,13 @@ impl fmt::Display for Errors {
             Self::NoExifDateTimeAvailable => {
                 write!(f, "{}", "EXIF data has no date time parameter set".red())
             }
-            Self::FileExists => write!(f, "{}", "File already exists".red()),
+            Self::FileExists(path) => {
+                write!(
+                    f,
+                    "{}",
+                    format!("`{}` already exists", path.display()).red()
+                )
+            }
         }
     }
 }
@@ -93,7 +99,7 @@ fn rename(path: &Path) -> Result<()> {
 
             println!("{} -> {}", path.display(), to.display().to_string().green());
         } else {
-            return Err(anyhow!(Errors::FileExists));
+            return Err(anyhow!(Errors::FileExists(to)));
         }
     }
 
