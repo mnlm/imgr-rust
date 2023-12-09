@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDateTime;
 use clap::Parser;
+use colored::*;
 use exif::{Exif, Field, In, Reader, Tag};
 use std::{
     error, fmt,
@@ -24,9 +25,11 @@ enum Errors {
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotADirectory => write!(f, "Not a directory"),
-            Self::NoExifDateTimeAvailable => write!(f, "EXIF data has no date time parameter set"),
-            Self::FileExists => write!(f, "File already exists"),
+            Self::NotADirectory => write!(f, "{}", "Not a directory".red()),
+            Self::NoExifDateTimeAvailable => {
+                write!(f, "{}", "EXIF data has no date time parameter set".red())
+            }
+            Self::FileExists => write!(f, "{}", "File already exists".red()),
         }
     }
 }
@@ -39,15 +42,12 @@ fn traverse_dir(dir: &Path) -> Result<()> {
         return Err(anyhow!(Errors::NotADirectory));
     }
 
-    for entry in dir
-        .read_dir()
-        .with_context(|| format!("Could not read directory `{}`", dir.display()))?
-    {
+    for entry in dir.read_dir()? {
         let path = entry?.path();
         if path.is_dir() {
             traverse_dir(&path)?;
         } else if let Err(err) = rename(&path) {
-            eprintln!("{} -> {}", path.display(), err);
+            eprintln!("{} -> {}", path.display(), err.to_string().red());
         };
     }
 
@@ -57,8 +57,7 @@ fn traverse_dir(dir: &Path) -> Result<()> {
 /// Rename a file to it's new filename.
 /// If target filename already exists, nothing happens.
 fn rename(path: &Path) -> Result<()> {
-    let file =
-        File::open(path).with_context(|| format!("Could not open file `{}`", path.display()))?;
+    let file = File::open(path)?;
 
     let mut bufreader = BufReader::new(&file);
     let exif = Reader::new().read_from_container(&mut bufreader)?;
@@ -70,9 +69,11 @@ fn rename(path: &Path) -> Result<()> {
         to.push(filename);
 
         if !to.exists() {
-            fs::rename(path, &to)
-                .with_context(|| format!("Could not rename `{}`", path.display()))?;
-            println!("{} -> {}", path.display(), to.display());
+            fs::rename(path, &to).with_context(|| {
+                format!("{} -> {}", path.display(), to.display().to_string().red())
+            })?;
+
+            println!("{} -> {}", path.display(), to.display().to_string().green());
         } else {
             return Err(anyhow!(Errors::FileExists));
         }
@@ -87,7 +88,7 @@ fn filename(path: &Path, exif: Exif) -> Result<String> {
     let exif_dt = get_datetime_from_exif(&exif)?.display_value().to_string();
 
     let dt = NaiveDateTime::parse_from_str(&exif_dt, "%Y-%m-%d %H:%M:%S")
-        .with_context(|| "Unable to parse EXIF date".to_string())?;
+        .with_context(|| "Unable to parse EXIF date".to_string().red())?;
 
     let filename = dt.format("%Y-%m-%d_%H-%M-%S");
 
