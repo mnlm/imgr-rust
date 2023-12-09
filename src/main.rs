@@ -9,6 +9,7 @@ use std::{
     io::BufReader,
     path::{Path, PathBuf},
 };
+use walkdir::WalkDir;
 
 const TARGET_FORMAT: &str = "%Y-%m-%d_%H-%M-%S";
 
@@ -44,13 +45,19 @@ fn traverse_dir(dir: &Path) -> Result<()> {
         return Err(anyhow!(Errors::NotADirectory));
     }
 
-    for entry in dir.read_dir()? {
-        let path = entry?.path();
-        if path.is_dir() {
-            traverse_dir(&path)?;
-        } else if let Err(err) = rename(&path) {
-            eprintln!("{} -> {}", path.display(), err.to_string().red());
-        };
+    let entries = WalkDir::new(dir)
+        .sort_by_file_name()
+        .into_iter()
+        .filter_map(|res| res.ok());
+
+    for entry in entries {
+        let path = entry.path();
+
+        if path.is_file() {
+            if let Err(err) = rename(path) {
+                eprintln!("{} -> {}", path.display(), err.to_string().red());
+            }
+        }
     }
 
     Ok(())
