@@ -93,7 +93,7 @@ fn filename(path: &Path, exif: Exif) -> Result<String> {
 
     Ok(
         match path.extension().and_then(|extension| extension.to_str()) {
-            Some(extension) => format!("{filename}.{extension}"),
+            Some(extension) => format!("{filename}.{}", extension.to_lowercase()),
             None => filename.to_string(),
         },
     )
