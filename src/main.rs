@@ -10,6 +10,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+const TARGET_FORMAT: &str = "%Y-%m-%d_%H-%M-%S";
+
 #[derive(Parser, Debug)]
 struct Cli {
     dir: PathBuf,
@@ -55,13 +57,22 @@ fn traverse_dir(dir: &Path) -> Result<()> {
 }
 
 /// Rename a file to it's new filename.
+/// Files that already adhere to target filename pattern are skipped.
 /// If target filename already exists, nothing happens.
 fn rename(path: &Path) -> Result<()> {
-    let file = File::open(path)?;
+    if has_correct_filename(path) {
+        println!(
+            "{} -> {}",
+            path.display(),
+            "Already has the correct filename pattern".green()
+        );
 
+        return Ok(());
+    }
+
+    let file = File::open(path)?;
     let mut bufreader = BufReader::new(&file);
     let exif = Reader::new().read_from_container(&mut bufreader)?;
-
     let filename = filename(path, exif)?;
 
     if let Some(parent) = path.parent() {
@@ -82,6 +93,14 @@ fn rename(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Check if file name is the correct date time pattern
+fn has_correct_filename(path: &Path) -> bool {
+    path.file_stem()
+        .and_then(|filename| filename.to_str())
+        .and_then(|filename| NaiveDateTime::parse_from_str(filename, TARGET_FORMAT).ok())
+        .map_or(false, |_| true)
+}
+
 /// Generates the new filename for renaming a file.
 /// The pattern is: YYYY-MM-DD_H-M-S.extension
 fn filename(path: &Path, exif: Exif) -> Result<String> {
@@ -90,7 +109,7 @@ fn filename(path: &Path, exif: Exif) -> Result<String> {
     let dt = NaiveDateTime::parse_from_str(&exif_dt, "%Y-%m-%d %H:%M:%S")
         .with_context(|| "Unable to parse EXIF date".to_string().red())?;
 
-    let filename = dt.format("%Y-%m-%d_%H-%M-%S");
+    let filename = dt.format(TARGET_FORMAT);
 
     Ok(
         match path.extension().and_then(|extension| extension.to_str()) {
