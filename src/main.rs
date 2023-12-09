@@ -18,6 +18,7 @@ struct Cli {
 enum Errors {
     NotADirectory,
     NoExifDateTimeAvailable,
+    FileExists,
 }
 
 impl fmt::Display for Errors {
@@ -25,6 +26,7 @@ impl fmt::Display for Errors {
         match self {
             Self::NotADirectory => write!(f, "Not a directory"),
             Self::NoExifDateTimeAvailable => write!(f, "EXIF data has no date time parameter set"),
+            Self::FileExists => write!(f, "File already exists"),
         }
     }
 }
@@ -71,6 +73,8 @@ fn rename(path: &Path) -> Result<()> {
             fs::rename(path, &to)
                 .with_context(|| format!("Could not rename `{}`", path.display()))?;
             println!("{} -> {}", path.display(), to.display());
+        } else {
+            return Err(anyhow!(Errors::FileExists));
         }
     }
 
