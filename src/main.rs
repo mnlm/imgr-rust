@@ -1,8 +1,9 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Ok, Result};
 use chrono::NaiveDateTime;
 use clap::Parser;
-use colored::*;
 use exif::{Exif, Field, In, Reader, Tag};
+use log::{error, info, LevelFilter};
+use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 use std::{
     error, fmt,
     fs::{self, File},
@@ -28,18 +29,37 @@ enum Errors {
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotADirectory => write!(f, "{}", "Not a directory".red()),
+            Self::NotADirectory => write!(f, "Not a directory"),
             Self::NoExifDateTimeAvailable => {
-                write!(f, "{}", "EXIF data has no date time parameter set".red())
+                write!(f, "EXIF data has no date time parameter set")
             }
             Self::FileExists(path) => {
-                write!(f, "{}", format!("{} already exists", path.display()).red())
+                write!(f, "{} already exists", path.display())
             }
         }
     }
 }
 
 impl error::Error for Errors {}
+
+fn main() -> Result<()> {
+    init_logger()?;
+
+    let args = Cli::parse();
+    traverse_dir(&args.dir)?;
+    Ok(())
+}
+
+fn init_logger() -> Result<()> {
+    TermLogger::init(
+        LevelFilter::Info,
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )?;
+
+    Ok(())
+}
 
 /// Recursively read directory supplied in CLI argument and rename image files.
 fn traverse_dir(dir: &Path) -> Result<()> {
@@ -57,7 +77,7 @@ fn traverse_dir(dir: &Path) -> Result<()> {
 
         if path.is_file() {
             if let Err(err) = rename(path) {
-                eprintln!("{} -> {}", path.display(), err.to_string().red());
+                error!("{} - {}", path.display(), err.to_string());
             }
         }
     }
@@ -70,10 +90,10 @@ fn traverse_dir(dir: &Path) -> Result<()> {
 /// If target filename already exists, nothing happens.
 fn rename(path: &Path) -> Result<()> {
     if has_correct_filename(path) {
-        println!(
-            "{} -> {}",
+        info!(
+            "{} - {}",
             path.display(),
-            "Already has the correct filename pattern".green()
+            "Already has the correct filename pattern"
         );
 
         return Ok(());
@@ -89,11 +109,9 @@ fn rename(path: &Path) -> Result<()> {
         to.push(filename);
 
         if !to.exists() {
-            fs::rename(path, &to).with_context(|| {
-                format!("{} -> {}", path.display(), to.display().to_string().red())
-            })?;
+            fs::rename(path, &to)?;
 
-            println!("{} -> {}", path.display(), to.display().to_string().green());
+            info!("{} - {}", path.display(), to.display().to_string());
         } else {
             return Err(anyhow!(Errors::FileExists(to)));
         }
@@ -115,8 +133,7 @@ fn has_correct_filename(path: &Path) -> bool {
 fn filename(path: &Path, exif: Exif) -> Result<String> {
     let exif_dt = get_datetime_from_exif(&exif)?.display_value().to_string();
 
-    let dt = NaiveDateTime::parse_from_str(&exif_dt, "%Y-%m-%d %H:%M:%S")
-        .with_context(|| "Unable to parse EXIF date".to_string().red())?;
+    let dt = NaiveDateTime::parse_from_str(&exif_dt, "%Y-%m-%d %H:%M:%S")?;
 
     let filename = dt.format(TARGET_FORMAT);
 
@@ -144,10 +161,4 @@ fn get_datetime_from_exif(exif: &Exif) -> Result<&Field> {
     };
 
     Err(anyhow!(Errors::NoExifDateTimeAvailable))
-}
-
-fn main() -> Result<()> {
-    let args = Cli::parse();
-    traverse_dir(&args.dir)?;
-    Ok(())
 }
