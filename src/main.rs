@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Ok, Result};
+use anyhow::{anyhow, Ok, Result};
 use chrono::NaiveDateTime;
 use clap::Parser;
 use exif::{Exif, Field, In, Reader, Tag};
