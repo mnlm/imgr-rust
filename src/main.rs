@@ -2,7 +2,8 @@ use anyhow::{anyhow, Ok, Result};
 use chrono::NaiveDateTime;
 use clap::Parser;
 use exif::{Exif, Field, In, Reader, Tag};
-use log::{error, info, LevelFilter};
+use indicatif::{ProgressBar, ProgressStyle};
+use log::{error, LevelFilter};
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 use std::{
     error, fmt,
@@ -50,9 +51,10 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+// Init global log
 fn init_logger() -> Result<()> {
     TermLogger::init(
-        LevelFilter::Info,
+        LevelFilter::Error,
         Config::default(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
@@ -67,22 +69,47 @@ fn traverse_dir(dir: &Path) -> Result<()> {
         return Err(anyhow!(Errors::NotADirectory));
     }
 
+    println!("Renaming images using format `{}`:", TARGET_FORMAT);
+    println!();
+
     let entries = WalkDir::new(dir)
         .sort_by_file_name()
         .into_iter()
-        .filter_map(|res| res.ok());
+        .filter_map(|res| res.ok())
+        .filter(|entry| entry.path().is_file())
+        .collect::<Vec<_>>();
+
+    let pb = get_progressbar(entries.len());
 
     for entry in entries {
         let path = entry.path();
+        pb.set_message(path.display().to_string());
 
-        if path.is_file() {
-            if let Err(err) = rename(path) {
-                error!("{} - {}", path.display(), err.to_string());
-            }
+        if let Err(err) = rename(path) {
+            pb.suspend(|| error!("{} - {}", path.display(), err));
         }
+
+        pb.inc(1);
     }
 
+    pb.println("");
+    pb.finish_with_message("Finished renaming images");
+
     Ok(())
+}
+
+/// ProgressBar configuration and setup
+fn get_progressbar(len: usize) -> ProgressBar {
+    let pb = ProgressBar::new(len as u64);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "[{elapsed_precise}] [{wide_bar}] {human_pos}/{human_len:3} {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+
+    pb
 }
 
 /// Rename a file to it's new filename.
@@ -90,12 +117,6 @@ fn traverse_dir(dir: &Path) -> Result<()> {
 /// If target filename already exists, nothing happens.
 fn rename(path: &Path) -> Result<()> {
     if has_correct_filename(path) {
-        info!(
-            "{} - {}",
-            path.display(),
-            "Already has the correct filename pattern"
-        );
-
         return Ok(());
     }
 
@@ -110,8 +131,6 @@ fn rename(path: &Path) -> Result<()> {
 
         if !to.exists() {
             fs::rename(path, &to)?;
-
-            info!("{} - {}", path.display(), to.display().to_string());
         } else {
             return Err(anyhow!(Errors::FileExists(to)));
         }
