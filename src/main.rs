@@ -16,6 +16,7 @@ use walkdir::WalkDir;
 const TARGET_FORMAT: &str = "%Y-%m-%d_%H-%M-%S";
 
 #[derive(Parser, Debug)]
+#[command(version, about, next_line_help = true)]
 struct Cli {
     /// Directory containing images to be renamed
     #[arg(value_parser=parse_directory, value_hint=ValueHint::DirPath)]
