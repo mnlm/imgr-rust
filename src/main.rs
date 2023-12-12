@@ -167,17 +167,8 @@ fn filename(path: &Path, exif: Exif) -> Result<String> {
 /// Tries to get a date time value from EXIF data.
 /// Checks different EXIF fields, if none of them exist returns an error.
 fn get_datetime_from_exif(exif: &Exif) -> Result<&Field> {
-    if let Some(datetime) = exif.get_field(Tag::DateTimeOriginal, In::PRIMARY) {
-        return Ok(datetime);
-    };
-
-    if let Some(datetime) = exif.get_field(Tag::DateTimeDigitized, In::PRIMARY) {
-        return Ok(datetime);
-    };
-
-    if let Some(datetime) = exif.get_field(Tag::DateTime, In::PRIMARY) {
-        return Ok(datetime);
-    };
-
-    Err(anyhow!(Errors::NoExifDateTimeAvailable))
+    exif.get_field(Tag::DateTimeOriginal, In::PRIMARY)
+        .or_else(|| exif.get_field(Tag::DateTimeDigitized, In::PRIMARY))
+        .or_else(|| exif.get_field(Tag::DateTime, In::PRIMARY))
+        .ok_or_else(|| anyhow!(Errors::NoExifDateTimeAvailable))
 }
