@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Ok, Result};
 use chrono::NaiveDateTime;
-use clap::Parser;
+use clap::{Parser, ValueHint};
 use exif::{Exif, Field, In, Reader, Tag};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{error, LevelFilter};
@@ -17,7 +17,18 @@ const TARGET_FORMAT: &str = "%Y-%m-%d_%H-%M-%S";
 
 #[derive(Parser, Debug)]
 struct Cli {
+    /// Directory containing images to be renamed
+    #[arg(value_parser=parse_directory, value_hint=ValueHint::DirPath)]
     dir: PathBuf,
+}
+
+/// Parse `dir` argument to validate if the directory exists
+fn parse_directory(dir: &str) -> Result<PathBuf> {
+    let dir = PathBuf::from(dir);
+    if !dir.is_dir() {
+        return Err(anyhow!(Errors::NotADirectory));
+    }
+    Ok(dir)
 }
 
 #[derive(Debug)]
@@ -65,10 +76,6 @@ fn init_logger() -> Result<()> {
 
 /// Recursively read directory supplied in CLI argument and rename image files.
 fn traverse_dir(dir: &Path) -> Result<()> {
-    if !dir.is_dir() {
-        return Err(anyhow!(Errors::NotADirectory));
-    }
-
     println!("Renaming images using format `{}`:", TARGET_FORMAT);
     println!();
 
