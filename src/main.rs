@@ -1,5 +1,8 @@
 use anyhow::{anyhow, Ok, Result};
-use chrono::NaiveDateTime;
+use chrono::{
+    format::{strftime::StrftimeItems, Item},
+    NaiveDateTime,
+};
 use clap::{Parser, ValueHint};
 use exif::{Exif, Field, In, Reader, Tag};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -13,14 +16,25 @@ use std::{
 };
 use walkdir::WalkDir;
 
-const TARGET_FORMAT: &str = "%Y-%m-%d_%H-%M-%S";
-
 #[derive(Parser, Debug)]
 #[command(version, about, next_line_help = true)]
 struct Cli {
     /// Directory containing images to be renamed
     #[arg(value_parser=parse_directory, value_hint=ValueHint::DirPath)]
     dir: PathBuf,
+
+    /// Formatting syntax to use for new image filenames
+    #[arg(short, long, value_parser=parse_format, default_value="%Y-%m-%d_%H-%M-%S")]
+    format: Option<String>,
+}
+
+/// Parse `format` argument to validate if it complies with the strftime formatting syntax
+fn parse_format(format: &str) -> Result<String> {
+    let mut items = StrftimeItems::new(format);
+    if items.any(|item| item == Item::Error) {
+        return Err(anyhow!(Errors::InvalidDateTimeFormat));
+    }
+    Ok(format.to_string())
 }
 
 /// Parse `dir` argument to validate if the directory exists
@@ -37,6 +51,7 @@ enum Errors {
     NotADirectory,
     NoExifDateTimeAvailable,
     FileExists(PathBuf),
+    InvalidDateTimeFormat,
 }
 
 impl fmt::Display for Errors {
@@ -49,6 +64,12 @@ impl fmt::Display for Errors {
             Self::FileExists(path) => {
                 write!(f, "{} already exists", path.display())
             }
+            Self::InvalidDateTimeFormat => {
+                write!(
+                    f,
+                    "Invalid date time format, use strftime formatting syntax"
+                )
+            }
         }
     }
 }
@@ -57,9 +78,7 @@ impl error::Error for Errors {}
 
 fn main() -> Result<()> {
     init_logger()?;
-
-    let args = Cli::parse();
-    traverse_dir(&args.dir)?;
+    traverse_dir()?;
     Ok(())
 }
 
@@ -76,10 +95,13 @@ fn init_logger() -> Result<()> {
 }
 
 /// Recursively read directory supplied in CLI argument and rename image files.
-fn traverse_dir(dir: &Path) -> Result<()> {
-    println!("Renaming images using format `{}`:", TARGET_FORMAT);
+fn traverse_dir() -> Result<()> {
+    let cli = Cli::parse();
+    let format = cli.format.as_deref().unwrap();
+    println!("Renaming images using format `{}`:", format);
     println!();
 
+    let dir = cli.dir;
     let entries = WalkDir::new(dir)
         .sort_by_file_name()
         .into_iter()
@@ -149,9 +171,12 @@ fn rename(path: &Path) -> Result<()> {
 
 /// Check if file name is the correct date time pattern
 fn has_correct_filename(path: &Path) -> bool {
+    let cli = Cli::parse();
+    let format = cli.format.as_deref().unwrap();
+
     path.file_stem()
         .and_then(|filename| filename.to_str())
-        .and_then(|filename| NaiveDateTime::parse_from_str(filename, TARGET_FORMAT).ok())
+        .and_then(|filename| NaiveDateTime::parse_from_str(filename, format).ok())
         .map_or(false, |_| true)
 }
 
@@ -162,7 +187,9 @@ fn filename(path: &Path, exif: Exif) -> Result<String> {
 
     let dt = NaiveDateTime::parse_from_str(&exif_dt, "%Y-%m-%d %H:%M:%S")?;
 
-    let filename = dt.format(TARGET_FORMAT);
+    let cli = Cli::parse();
+    let format = cli.format.as_deref().unwrap();
+    let filename = dt.format(format);
 
     Ok(
         match path.extension().and_then(|extension| extension.to_str()) {
