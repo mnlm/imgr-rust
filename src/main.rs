@@ -82,7 +82,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// Init global log
+/// Init global log
 fn init_logger() -> Result<()> {
     TermLogger::init(
         LevelFilter::Error,
@@ -144,7 +144,7 @@ fn get_progressbar(len: usize) -> ProgressBar {
 
 /// Rename a file to it's new filename.
 /// Files that already adhere to target filename pattern are skipped.
-/// If target filename already exists, nothing happens.
+/// If target filename already exists an error message is shown. This makes sure we don't accidentally overwrite images
 fn rename(path: &Path) -> Result<()> {
     let file = File::open(path)?;
     let mut bufreader = BufReader::new(&file);
@@ -176,7 +176,7 @@ fn has_correct_filename(path: &Path, filename: &str) -> bool {
         .map_or_else(|| false, |current_filename| current_filename == filename)
 }
 
-/// Generates the new filename for renaming a file
+/// Generates the new filename
 fn filename(path: &Path, exif: Exif) -> Result<String> {
     let exif_dt = get_datetime_from_exif(&exif)?.display_value().to_string();
 
