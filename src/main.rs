@@ -1,89 +1,30 @@
+mod cli;
+mod error;
+
 use anyhow::{anyhow, Ok, Result};
-use chrono::{
-    format::{strftime::StrftimeItems, Item},
-    NaiveDateTime,
-};
-use clap::{Parser, ValueHint};
+use chrono::NaiveDateTime;
+use clap::Parser;
+use cli::Cli;
+use error::Errors;
 use exif::{Exif, Field, In, Reader, Tag};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{error, LevelFilter};
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 use std::{
-    error, fmt,
     fs::{self, File},
     io::BufReader,
     path::{Path, PathBuf},
 };
 use walkdir::WalkDir;
 
-#[derive(Parser, Debug)]
-#[command(version, about, next_line_help = true)]
-struct Cli {
-    /// Directory containing images to be renamed
-    #[arg(value_parser=parse_directory, value_hint=ValueHint::DirPath)]
-    dir: PathBuf,
-
-    /// Formatting syntax to use for new image filenames
-    #[arg(short, long, value_parser=parse_format, default_value="%Y-%m-%d_%H-%M-%S")]
-    format: Option<String>,
-}
-
-/// Parse `format` argument to validate if it complies with the strftime formatting syntax
-fn parse_format(format: &str) -> Result<String> {
-    let mut items = StrftimeItems::new(format);
-    if items.any(|item| item == Item::Error) {
-        return Err(anyhow!(Errors::InvalidDateTimeFormat));
-    }
-    Ok(format.to_string())
-}
-
-/// Parse `dir` argument to validate if the directory exists
-fn parse_directory(dir: &str) -> Result<PathBuf> {
-    let dir = PathBuf::from(dir);
-    if !dir.is_dir() {
-        return Err(anyhow!(Errors::NotADirectory));
-    }
-    Ok(dir)
-}
-
-#[derive(Debug)]
-enum Errors {
-    NotADirectory,
-    NoExifDateTimeAvailable,
-    FileExists(PathBuf),
-    InvalidDateTimeFormat,
-}
-
-impl fmt::Display for Errors {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NotADirectory => write!(f, "Not a directory"),
-            Self::NoExifDateTimeAvailable => {
-                write!(f, "EXIF data has no date time parameter set")
-            }
-            Self::FileExists(path) => {
-                write!(f, "{} already exists", path.display())
-            }
-            Self::InvalidDateTimeFormat => {
-                write!(
-                    f,
-                    "Invalid date time format, use strftime formatting syntax"
-                )
-            }
-        }
-    }
-}
-
-impl error::Error for Errors {}
-
 fn main() -> Result<()> {
-    init_logger()?;
-    traverse_dir()?;
+    init()?;
+    run()?;
     Ok(())
 }
 
 /// Init global log
-fn init_logger() -> Result<()> {
+fn init() -> Result<()> {
     TermLogger::init(
         LevelFilter::Error,
         Config::default(),
@@ -95,7 +36,7 @@ fn init_logger() -> Result<()> {
 }
 
 /// Recursively read directory supplied in CLI argument and rename image files.
-fn traverse_dir() -> Result<()> {
+fn run() -> Result<()> {
     let cli = Cli::parse();
     let format = cli.format.as_deref().unwrap();
     println!("Renaming images using format `{}`:", format);
