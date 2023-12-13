@@ -146,18 +146,18 @@ fn get_progressbar(len: usize) -> ProgressBar {
 /// Files that already adhere to target filename pattern are skipped.
 /// If target filename already exists, nothing happens.
 fn rename(path: &Path) -> Result<()> {
-    if has_correct_filename(path) {
-        return Ok(());
-    }
-
     let file = File::open(path)?;
     let mut bufreader = BufReader::new(&file);
     let exif = Reader::new().read_from_container(&mut bufreader)?;
-    let filename = filename(path, exif)?;
+    let new_filename = filename(path, exif)?;
+
+    if has_correct_filename(path, new_filename.as_str()) {
+        return Ok(());
+    }
 
     if let Some(parent) = path.parent() {
         let mut to = PathBuf::from(parent);
-        to.push(filename);
+        to.push(new_filename);
 
         if !to.exists() {
             fs::rename(path, &to)?;
@@ -169,19 +169,14 @@ fn rename(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Check if file name is the correct date time pattern
-fn has_correct_filename(path: &Path) -> bool {
-    let cli = Cli::parse();
-    let format = cli.format.as_deref().unwrap();
-
-    path.file_stem()
-        .and_then(|filename| filename.to_str())
-        .and_then(|filename| NaiveDateTime::parse_from_str(filename, format).ok())
-        .map_or(false, |_| true)
+/// Check if file name already has correct format
+fn has_correct_filename(path: &Path, filename: &str) -> bool {
+    path.file_name()
+        .and_then(|current_filename| current_filename.to_str())
+        .map_or_else(|| false, |current_filename| current_filename == filename)
 }
 
-/// Generates the new filename for renaming a file.
-/// The pattern is: YYYY-MM-DD_H-M-S.extension
+/// Generates the new filename for renaming a file
 fn filename(path: &Path, exif: Exif) -> Result<String> {
     let exif_dt = get_datetime_from_exif(&exif)?.display_value().to_string();
 
