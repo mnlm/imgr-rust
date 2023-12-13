@@ -1,14 +1,14 @@
 mod cli;
 mod error;
 
-use anyhow::{anyhow, Ok, Result};
+use anyhow::{anyhow, Result};
 use chrono::NaiveDateTime;
 use clap::Parser;
-use cli::Cli;
+use cli::{log_level, Cli};
 use error::Errors;
 use exif::{Exif, Field, In, Reader, Tag};
 use indicatif::{ProgressBar, ProgressStyle};
-use log::{error, LevelFilter};
+use log::error;
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 use std::{
     fs::{self, File},
@@ -26,7 +26,7 @@ fn main() -> Result<()> {
 /// Init global log
 fn init() -> Result<()> {
     TermLogger::init(
-        LevelFilter::Error,
+        log_level(),
         Config::default(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
@@ -38,9 +38,6 @@ fn init() -> Result<()> {
 /// Recursively read directory supplied in CLI argument and rename image files.
 fn run() -> Result<()> {
     let cli = Cli::parse();
-    let format = cli.format.as_deref().unwrap();
-    println!("Renaming images using format `{}`:", format);
-    println!();
 
     let dir = cli.dir;
     let entries = WalkDir::new(dir)

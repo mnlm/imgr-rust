@@ -1,7 +1,8 @@
 use crate::error::Errors;
 use anyhow::{anyhow, Result};
 use chrono::format::{strftime::StrftimeItems, Item};
-use clap::{Parser, ValueHint};
+use clap::{ArgAction::Count, Parser, ValueHint};
+use log::LevelFilter;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -14,6 +15,23 @@ pub struct Cli {
     /// Formatting syntax to use for new image filenames
     #[arg(short, long, value_parser=parse_format, default_value="%Y-%m-%d_%H-%M-%S")]
     pub format: Option<String>,
+
+    /// Supports multiple levels that correspond to log levels
+    #[arg(short, long, action=Count)]
+    verbose: u8,
+}
+
+/// Get the appropriate log level for `verbose` flag
+pub fn log_level() -> LevelFilter {
+    let cli = Cli::parse();
+    match cli.verbose {
+        0 => LevelFilter::Off,
+        1 => LevelFilter::Error,
+        2 => LevelFilter::Warn,
+        3 => LevelFilter::Info,
+        4 => LevelFilter::Debug,
+        _ => LevelFilter::Trace,
+    }
 }
 
 /// Parse `format` argument to validate if it complies with the strftime formatting syntax
