@@ -41,6 +41,7 @@ fn parse_directory(dir: &str) -> Result<PathBuf> {
     Ok(dir)
 }
 
+/// Context holds all relevant cli arguments
 #[derive(Debug)]
 pub struct Context {
     pub dir: PathBuf,
