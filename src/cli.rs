@@ -7,31 +7,18 @@ use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(version, about, next_line_help = true)]
-pub struct Cli {
+struct Cli {
     /// Directory containing images to be renamed
     #[arg(value_parser=parse_directory, value_hint=ValueHint::DirPath)]
-    pub dir: PathBuf,
+    dir: PathBuf,
 
     /// Formatting syntax to use for new image filenames
     #[arg(short, long, value_parser=parse_format, default_value="%Y-%m-%d_%H-%M-%S")]
-    pub format: Option<String>,
+    format: Option<String>,
 
     /// Supports multiple levels that correspond to log levels
     #[arg(short, long, action=Count)]
     verbose: u8,
-}
-
-/// Get the appropriate log level for `verbose` flag
-pub fn log_level() -> LevelFilter {
-    let cli = Cli::parse();
-    match cli.verbose {
-        0 => LevelFilter::Off,
-        1 => LevelFilter::Error,
-        2 => LevelFilter::Warn,
-        3 => LevelFilter::Info,
-        4 => LevelFilter::Debug,
-        _ => LevelFilter::Trace,
-    }
 }
 
 /// Parse `format` argument to validate if it complies with the strftime formatting syntax
@@ -50,4 +37,33 @@ fn parse_directory(dir: &str) -> Result<PathBuf> {
         return Err(anyhow!(Errors::NotADirectory));
     }
     Ok(dir)
+}
+
+#[derive(Debug)]
+pub struct Context {
+    pub dir: PathBuf,
+    pub format: String,
+    verbose: u8,
+}
+
+impl Context {
+    pub fn get() -> Self {
+        let cli = Cli::parse();
+        Context {
+            dir: cli.dir,
+            format: cli.format.unwrap(),
+            verbose: cli.verbose,
+        }
+    }
+
+    pub fn log_level(&self) -> LevelFilter {
+        match self.verbose {
+            0 => LevelFilter::Off,
+            1 => LevelFilter::Error,
+            2 => LevelFilter::Warn,
+            3 => LevelFilter::Info,
+            4 => LevelFilter::Debug,
+            _ => LevelFilter::Trace,
+        }
+    }
 }

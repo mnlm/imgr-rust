@@ -3,8 +3,7 @@ mod error;
 
 use anyhow::{anyhow, Result};
 use chrono::NaiveDateTime;
-use clap::Parser;
-use cli::{log_level, Cli};
+use cli::Context;
 use error::Errors;
 use exif::{Exif, Field, In, Reader, Tag};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -18,15 +17,16 @@ use std::{
 use walkdir::WalkDir;
 
 fn main() -> Result<()> {
-    init()?;
-    run()?;
+    let ctx = Context::get();
+    init(&ctx)?;
+    run(&ctx)?;
     Ok(())
 }
 
 /// Init global log
-fn init() -> Result<()> {
+fn init(ctx: &Context) -> Result<()> {
     TermLogger::init(
-        log_level(),
+        ctx.log_level(),
         Config::default(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
@@ -36,11 +36,8 @@ fn init() -> Result<()> {
 }
 
 /// Recursively read directory supplied in CLI argument and rename image files.
-fn run() -> Result<()> {
-    let cli = Cli::parse();
-
-    let dir = cli.dir;
-    let entries = WalkDir::new(dir)
+fn run(ctx: &Context) -> Result<()> {
+    let entries = WalkDir::new(&ctx.dir)
         .sort_by_file_name()
         .into_iter()
         .filter_map(|res| res.ok())
@@ -53,7 +50,7 @@ fn run() -> Result<()> {
         let path = entry.path();
         pb.set_message(path.display().to_string());
 
-        match rename(path) {
+        match rename(ctx, path) {
             Ok(s) => pb.suspend(|| info!("{} - {}", path.display(), s)),
             Err(err) => pb.suspend(|| error!("{} - {}", path.display(), err)),
         }
@@ -82,11 +79,11 @@ fn get_progressbar(len: usize) -> ProgressBar {
 /// Rename a file to it's new filename.
 /// Files that already adhere to target filename pattern are skipped.
 /// If target filename already exists an error message is shown. This makes sure we don't accidentally overwrite images
-fn rename(path: &Path) -> Result<String> {
+fn rename(ctx: &Context, path: &Path) -> Result<String> {
     let file = File::open(path)?;
     let mut bufreader = BufReader::new(&file);
     let exif = Reader::new().read_from_container(&mut bufreader)?;
-    let new_filename = filename(path, exif)?;
+    let new_filename = filename(ctx, path, exif)?;
 
     if has_correct_filename(path, new_filename.as_str()) {
         return Ok("Has correct filename".to_string());
@@ -116,14 +113,10 @@ fn has_correct_filename(path: &Path, filename: &str) -> bool {
 }
 
 /// Generates the new filename
-fn filename(path: &Path, exif: Exif) -> Result<String> {
+fn filename(ctx: &Context, path: &Path, exif: Exif) -> Result<String> {
     let exif_dt = get_datetime_from_exif(&exif)?.display_value().to_string();
-
     let dt = NaiveDateTime::parse_from_str(&exif_dt, "%Y-%m-%d %H:%M:%S")?;
-
-    let cli = Cli::parse();
-    let format = cli.format.as_deref().unwrap();
-    let filename = dt.format(format);
+    let filename = dt.format(ctx.format.as_str());
 
     Ok(
         match path.extension().and_then(|extension| extension.to_str()) {
