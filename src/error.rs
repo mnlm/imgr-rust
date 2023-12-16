@@ -6,6 +6,7 @@ pub enum Errors {
     NoExifDateTimeAvailable,
     FileExists(PathBuf),
     InvalidDateTimeFormat,
+    NoParentFolder,
 }
 
 impl fmt::Display for Errors {
@@ -23,6 +24,9 @@ impl fmt::Display for Errors {
                     f,
                     "Invalid date time format, use strftime formatting syntax"
                 )
+            }
+            Self::NoParentFolder => {
+                write!(f, "Parent folder is not available")
             }
         }
     }

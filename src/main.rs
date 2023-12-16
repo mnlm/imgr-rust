@@ -8,7 +8,7 @@ use cli::{log_level, Cli};
 use error::Errors;
 use exif::{Exif, Field, In, Reader, Tag};
 use indicatif::{ProgressBar, ProgressStyle};
-use log::error;
+use log::{error, info};
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 use std::{
     fs::{self, File},
@@ -53,14 +53,13 @@ fn run() -> Result<()> {
         let path = entry.path();
         pb.set_message(path.display().to_string());
 
-        if let Err(err) = rename(path) {
-            pb.suspend(|| error!("{} - {}", path.display(), err));
+        match rename(path) {
+            Ok(s) => pb.suspend(|| info!("{} - {}", path.display(), s)),
+            Err(err) => pb.suspend(|| error!("{} - {}", path.display(), err)),
         }
 
         pb.inc(1);
     }
-
-    pb.println("");
     pb.finish_with_message("Finished renaming images");
 
     Ok(())
@@ -83,28 +82,30 @@ fn get_progressbar(len: usize) -> ProgressBar {
 /// Rename a file to it's new filename.
 /// Files that already adhere to target filename pattern are skipped.
 /// If target filename already exists an error message is shown. This makes sure we don't accidentally overwrite images
-fn rename(path: &Path) -> Result<()> {
+fn rename(path: &Path) -> Result<String> {
     let file = File::open(path)?;
     let mut bufreader = BufReader::new(&file);
     let exif = Reader::new().read_from_container(&mut bufreader)?;
     let new_filename = filename(path, exif)?;
 
     if has_correct_filename(path, new_filename.as_str()) {
-        return Ok(());
+        return Ok("Has correct filename".to_string());
     }
 
-    if let Some(parent) = path.parent() {
-        let mut to = PathBuf::from(parent);
-        to.push(new_filename);
+    path.parent().map_or_else(
+        || Err(anyhow!(Errors::NoParentFolder)),
+        |parent| {
+            let mut to = PathBuf::from(parent);
+            to.push(new_filename);
 
-        if !to.exists() {
-            fs::rename(path, &to)?;
-        } else {
-            return Err(anyhow!(Errors::FileExists(to)));
-        }
-    }
-
-    Ok(())
+            if !to.exists() {
+                fs::rename(path, &to)?;
+                return Ok(to.display().to_string());
+            } else {
+                Err(anyhow!(Errors::FileExists(to)))
+            }
+        },
+    )
 }
 
 /// Check if file name already has correct format
