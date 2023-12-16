@@ -16,7 +16,9 @@ struct Cli {
     #[arg(short, long, value_parser=parse_format, default_value="%Y-%m-%d_%H-%M-%S")]
     format: Option<String>,
 
-    /// Supports multiple levels that correspond to log levels
+    /// Add multiple flags for more output
+    ///
+    /// By default, logging is off. Add `-v` for errors, `-vv` for warnings etc.
     #[arg(short, long, action=Count)]
     verbose: u8,
 }
