@@ -16,11 +16,17 @@ struct Cli {
     #[arg(short, long, value_parser=parse_format, default_value="%Y-%m-%d_%H-%M-%S")]
     format: Option<String>,
 
-    /// Add multiple flags for more output
+    /// Add multiple flags for more log output
     ///
-    /// By default, logging is off. Add `-v` for errors, `-vv` for warnings etc.
+    /// By default, info will be reported. Add `-v` for debug, `-vv` for trace logging
     #[arg(short, long, action=Count)]
     verbose: u8,
+
+    /// Add multiple flags to reduce log output
+    ///
+    /// By default, info will be reported. Add `-q` for warn, `-qq` for error, `-qqq` for no output
+    #[arg(short, long, action=Count)]
+    quiet: u8,
 }
 
 /// Parse `format` argument to validate if it complies with the strftime formatting syntax
@@ -47,6 +53,7 @@ pub struct Context {
     pub dir: PathBuf,
     pub format: String,
     verbose: u8,
+    quiet: u8,
 }
 
 impl Context {
@@ -56,12 +63,15 @@ impl Context {
             dir: cli.dir,
             format: cli.format.unwrap(),
             verbose: cli.verbose,
+            quiet: cli.quiet,
         }
     }
 
     pub fn log_level(&self) -> LevelFilter {
-        match self.verbose {
-            0 => LevelFilter::Off,
+        let level = 3 - (self.quiet as i8) + (self.verbose as i8);
+
+        match level {
+            i8::MIN..=0 => LevelFilter::Off,
             1 => LevelFilter::Error,
             2 => LevelFilter::Warn,
             3 => LevelFilter::Info,
