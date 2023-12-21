@@ -1,7 +1,7 @@
 use crate::error::Errors;
 use anyhow::{anyhow, Result};
 use chrono::format::{strftime::StrftimeItems, Item};
-use clap::{ArgAction::Count, Parser, ValueHint};
+use clap::{ArgAction::Count, Args, Parser, ValueHint};
 use log::LevelFilter;
 use std::path::PathBuf;
 
@@ -16,6 +16,12 @@ struct Cli {
     #[arg(short, long, value_parser=parse_format, default_value="%Y-%m-%d_%H-%M-%S")]
     format: Option<String>,
 
+    #[command(flatten)]
+    verbosity: Verbosity,
+}
+
+#[derive(Debug, Args)]
+struct Verbosity {
     /// Add multiple flags for more log output
     ///
     /// By default, info will be reported. Add `-v` for debug, `-vv` for trace logging
@@ -52,8 +58,7 @@ fn parse_directory(dir: &str) -> Result<PathBuf> {
 pub struct Context {
     pub dir: PathBuf,
     pub format: String,
-    verbose: u8,
-    quiet: u8,
+    verbosity: Verbosity,
 }
 
 impl Context {
@@ -62,13 +67,12 @@ impl Context {
         Context {
             dir: cli.dir,
             format: cli.format.unwrap(),
-            verbose: cli.verbose,
-            quiet: cli.quiet,
+            verbosity: cli.verbosity,
         }
     }
 
     pub fn log_level(&self) -> LevelFilter {
-        let level = 3 - (self.quiet as i8) + (self.verbose as i8);
+        let level = 3 - (self.verbosity.quiet as i8) + (self.verbosity.verbose as i8);
 
         match level {
             i8::MIN..=0 => LevelFilter::Off,
