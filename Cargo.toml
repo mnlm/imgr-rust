@@ -1,8 +1,8 @@
 [package]
-name = "imgr-rust"
-version = "0.2.1"
-edition = "2021"
-description = "Rename image files to their EXIF creation date if possible"
+name = "imgr"
+version = "1.0.0"
+edition = "2024"
+description = "Rename image files to their EXIF creation date"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
@@ -12,4 +12,4 @@ chrono = "0.4"
 walkdir = "2"
 log = "0.4"
 simplelog = "0.12"
-indicatif = "0.17"
+indicatif = "0.18"
