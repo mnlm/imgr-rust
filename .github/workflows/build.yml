@@ -42,10 +42,20 @@ jobs:
         command: build
         args: --verbose --release --target ${{ matrix.target }}
 
+    - name: Compress binary (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        tar -czvf target/imgr-x86_64-linux.tar.gz -C target/x86_64-unknown-linux-gnu/release imgr
+
+    - name: Compress binary (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        powershell Compress-Archive -Path target\x86_64-pc-windows-msvc\release\imgr.exe -DestinationPath target\imgr-x86_64-windows.zip
+
     - name: Release
       uses: softprops/action-gh-release@v2
       if: github.ref_type == 'tag'
       with:
         files: |
-          target/x86_64-unknown-linux-gnu/release/imgr
-          target/x86_64-pc-windows-msvc/release/imgr.exe
+          target/imgr-x86_64-linux.tar.gz
+          target/imgr-x86_64-windows.zip
